@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Bookmarks</title>
+</head>
+<body>
+    <h1>PDF Bookmarks</h1>
+    {% for pdf_file, bookmark_info in bookmarks.items() %}
+        <h2>{{ pdf_file.split('/') | last }}</h2>
+        <ul>
+            {% for bookmark_title, bookmark_page in bookmark_info %}
+                <li><a href="{{ pdf_file }}#page={{ bookmark_page }}">{{ bookmark_title }}</a></li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+</body>
+</html>
+
