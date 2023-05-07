@@ -2,11 +2,14 @@ import os
 import logging
 from pathlib import Path
 import argparse
-import PyPDF2
+import pypdf
 from jinja2 import Environment, FileSystemLoader
 
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-def pdf_bookmarks_to_html(root_dir, output_path, output_filename):
+
+def pdf_bookmarks_to_html(root_dir, output_dir, filename, verbose_logging):
     # Create an empty list to store the bookmark information
     raw_bookmarks = []
 
@@ -15,7 +18,7 @@ def pdf_bookmarks_to_html(root_dir, output_path, output_filename):
         if filename.endswith(".pdf"):
             pdf_path = os.path.abspath(os.path.join(root_dir, filename))
 
-            pdf_reader = PyPDF2.PdfReader(pdf_path, "rb")
+            pdf_reader = pypdf.PdfReader(pdf_path, "rb")
             bookmark_info = pdf_reader.outline
 
             raw_bookmarks.append((pdf_path, bookmark_info))
@@ -29,18 +32,19 @@ def pdf_bookmarks_to_html(root_dir, output_path, output_filename):
             if pdf_path not in final_bookmarks:
                 final_bookmarks[pdf_path] = []
             final_bookmarks[pdf_path].append((bookmark.title, page_number))
+            if verbose_logging:
+                logging.info(f"Parsing bookmark {bookmark.title}")
 
     # Render the HTML
     if len(final_bookmarks) > 0:
         env = Environment(loader=FileSystemLoader("."))
         template = env.get_template("bookmark_template.html")
         html = template.render(bookmarks=final_bookmarks)
-        with open(f"{output_path}/{output_filename}", "w") as html_file:
+        with open(f"{output_dir}/{filename}", "w") as html_file:
             html_file.write(html)
 
     else:
-        logging.info(f"There were no PDFs found in the {root_dir} directory.")
-        os.rmdir(output_path)
+        logging.error(f"There were no PDFs found in the {root_dir} directory.")
 
 
 def parse_arguments():
@@ -50,6 +54,9 @@ def parse_arguments():
     )
     parser.add_argument(
         "--input-dir", help="The directory containing the input PDF files."
+    )
+    parser.add_argument(
+        "--verbose", help="Enable verbose logging", action="store_true"
     )
     parser.add_argument("--output-dir", help="The output path.")
     parser.add_argument(
@@ -80,7 +87,7 @@ def parse_arguments():
     # Create output directory
     Path(output_path).mkdir(parents=True, exist_ok=True)
 
-    pdf_bookmarks_to_html(root_dir, output_path, output_filename)
+    pdf_bookmarks_to_html(root_dir, output_path, output_filename, args.verbose)
 
 
 if __name__ == "__main__":
