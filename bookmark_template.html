@@ -9,7 +9,11 @@
         <h2>{{ pdf_file.split('/') | last }}</h2>
         <ul>
             {% for bookmark_title, bookmark_page in bookmark_info %}
-                <li><a href="{{ pdf_file }}#page={{ bookmark_page }}">{{ bookmark_title }}</a></li>
+                {% if bookmark_page == 0 %}
+                    <li><a href="file://{{ pdf_file }}" target="_blank">{{ bookmark_title }}</a></li>
+                {% else %}
+                    <li><a href="file://{{ pdf_file }}#page={{ bookmark_page }}" target="_blank">{{ bookmark_title }}</a></li>
+                {% endif %}
             {% endfor %}
         </ul>
     {% endfor %}

@@ -1,5 +1,6 @@
 import os
 import logging
+import glob
 from pathlib import Path
 import argparse
 import pypdf
@@ -14,13 +15,18 @@ def pdf_bookmarks_to_html(root_dir, output_dir, filename, verbose_logging):
     raw_bookmarks = []
 
     # Loop through all PDF files in the directory and retrieve all bookmarks.
-    for filename in os.listdir(root_dir):
+    # for filename in os.listdir(root_dir):
+    for filename in glob.iglob(f"{root_dir}/**/*.pdf", recursive=True):
         if filename.endswith(".pdf"):
+            logging.info(f"Reading PDF - {filename}")
             pdf_path = os.path.abspath(os.path.join(root_dir, filename))
 
-            pdf_reader = pypdf.PdfReader(pdf_path, "rb")
-            bookmark_info = pdf_reader.outline
-
+            try:
+                pdf_reader = pypdf.PdfReader(pdf_path, "rb")
+                bookmark_info = pdf_reader.outline
+            except Exception as e:
+                logging.error(f"Error reading PDF - {filename} - error: {e}")
+                continue
             raw_bookmarks.append((pdf_path, bookmark_info))
 
     final_bookmarks = {}
@@ -28,19 +34,23 @@ def pdf_bookmarks_to_html(root_dir, output_dir, filename, verbose_logging):
     # Create a dictionary with the path, bookmark title, and page number
     for pdf_path, bookmarks in raw_bookmarks:
         for bookmark in bookmarks:
-            page_number = pdf_reader.get_destination_page_number(bookmark) + 1
-            if pdf_path not in final_bookmarks:
-                final_bookmarks[pdf_path] = []
-            final_bookmarks[pdf_path].append((bookmark.title, page_number))
-            if verbose_logging:
-                logging.info(f"Parsing bookmark {bookmark.title}")
+            try:
+                page_number = pdf_reader.get_destination_page_number(bookmark) + 1
+                if pdf_path not in final_bookmarks:
+                    final_bookmarks[pdf_path] = []
+                final_bookmarks[pdf_path].append((bookmark.title, page_number))
+                if verbose_logging:
+                    logging.info(f"Parsing bookmark {bookmark.title}")
+            except Exception as e:
+                logging.error(f"Error reading bookmark - error: {e}")
+                continue
 
     # Render the HTML
     if len(final_bookmarks) > 0:
         env = Environment(loader=FileSystemLoader("."))
         template = env.get_template("bookmark_template.html")
         html = template.render(bookmarks=final_bookmarks)
-        with open(f"{output_dir}/{filename}", "w") as html_file:
+        with open(f"{output_dir}/output.html", "w", encoding="utf-8") as html_file:
             html_file.write(html)
 
     else:
@@ -76,7 +86,7 @@ def parse_arguments():
 
     # Get the absolute path of the input and output directories
     root_dir = os.path.abspath(relative_input_pdf_dir)
-    output_path = os.path.abspath(relative_output_pdf_dir)
+    output_path = args.output_dir
 
     if not os.path.exists(root_dir):
         raise RuntimeError(
